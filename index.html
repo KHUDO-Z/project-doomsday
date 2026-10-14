@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROJECT DOOMSDAY // CHRONO-1B</title>
+    <meta name="description" content="Хронометр на никси-лампах: обратный отсчёт около миллиарда лет до момента, когда растущая светимость Солнца сделает Землю непригодной для сложной жизни.">
+    <meta name="theme-color" content="#000103">
+
+    <!-- Open Graph / превью в соцсетях. Для картинки превью добавьте og:image с абсолютным URL (1200×630). -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="PROJECT DOOMSDAY // CHRONO-1B">
+    <meta property="og:description" content="Обратный отсчёт около 1 000 000 000 лет до конца обитаемости Земли. Никси-табло, живая галактика, протокол угрозы.">
+    <meta property="og:locale" content="ru_RU">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="PROJECT DOOMSDAY // CHRONO-1B">
+    <meta name="twitter:description" content="Обратный отсчёт около 1 000 000 000 лет до конца обитаемости Земли.">
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ea580c'/%3E%3Cpath d='M32 11 55 51H9z' fill='%23000'/%3E%3Crect x='29.5' y='24' width='5' height='15' rx='2' fill='%23ff6a00'/%3E%3Ccircle cx='32' cy='44.5' r='3' fill='%23ff6a00'/%3E%3C/svg%3E">
+
+    <!-- Шрифты: preconnect + link вместо @import -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" referrerpolicy="no-referrer">
+
+    <!-- Стили собраны вручную: Tailwind CDN больше не нужен -->
+    <style>
+        :root {
+            --bg: #000103;
+            --text: #f1f5f9;
+            --muted: #9ca3af;
+            --muted-2: #6b7280;
+            --orange: #ff5500;
+            --orange-hi: #ff6a00;
+            --orange-400: #fb923c;
+            --orange-500: #f97316;
+            --amber-400: #fbbf24;
+            --cyan-400: #22d3ee;
+            --red-400: #f87171;
+            --line: rgba(249, 115, 22, 0.3);
+            --grad: linear-gradient(90deg, #ea580c, #d97706);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        [hidden] { display: none !important; }
+        html { -webkit-text-size-adjust: 100%; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Share Tech Mono', ui-monospace, monospace;
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        ::selection { background: #ea580c; color: #fff; }
+
+        /* Сканлайны: ниже модального окна (z 50), но поверх контента */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 40;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 3px, 3px 100%;
+        }
+
+        .orbitron { font-family: 'Orbitron', sans-serif; }
+
+        .sr-only {
+            position: absolute !important;
+            width: 1px; height: 1px;
+            padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0);
+            white-space: nowrap; border: 0;
+        }
+
+        a { color: inherit; }
+        button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+        :focus-visible { outline: 2px solid var(--orange-400); outline-offset: 3px; }
+
+        #galaxy-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ---------- Шапка ---------- */
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--line);
+            background: rgba(0, 0, 0, 0.88);
+            -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .brand-icon {
+            flex: none;
+            width: 40px; height: 40px;
+            display: grid; place-items: center;
+            border-radius: 12px;
+            background: linear-gradient(45deg, #ea580c, #d97706);
+            color: #000;
+            box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4);
+        }
+        .brand-text { min-width: 0; }
+        .brand h1 {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: var(--orange-400);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .brand p { font-size: 10px; color: var(--muted); }
+
+        .header-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+
+        .chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .chip-visitors {
+            background: rgba(67, 20, 7, 0.4);
+            border: 1px solid rgba(249, 115, 22, 0.4);
+            color: var(--orange-400);
+        }
+        .chip-visitors strong { color: #fff; font-weight: 700; }
+        .chip-threat {
+            background: rgba(69, 10, 10, 0.4);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            color: var(--red-400);
+            font-weight: 700;
+        }
+
+        .ping { position: relative; display: inline-flex; width: 8px; height: 8px; flex: none; }
+        .ping::before, .ping::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        .ping::before { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; opacity: 0.75; }
+        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            background: var(--grad);
+            color: #000;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+            text-decoration: none;
+            white-space: nowrap;
+            box-shadow: 0 10px 24px rgba(234, 88, 12, 0.22);
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-lg { padding: 14px 24px; font-size: 14px; }
+
+        /* Подписи, которые на телефоне уходят только к скринридеру */
+        @media (max-width: 639px) {
+            .label-sm-sr {
+                position: absolute; width: 1px; height: 1px; overflow: hidden;
+                clip: rect(0, 0, 0, 0); white-space: nowrap;
+            }
+        }
+        @media (max-width: 479px) {
+            .chip-threat, .brand p { display: none; }
+            .site-header { gap: 8px; }
+        }
+        @media (min-width: 640px) {
+            .site-header { padding: 16px 24px; }
+            .brand h1 { font-size: 14px; }
+        }
+
+        /* ---------- Меню «О сайте» ---------- */
+        .btn-ghost {
+            background: rgba(67, 20, 7, 0.4);
+            border: 1px solid rgba(249, 115, 22, 0.4);
+            color: var(--orange-400);
+            box-shadow: none;
+        }
+        .btn-ghost[aria-expanded="true"] { background: rgba(124, 45, 18, 0.55); color: #fff; }
+        .chev { font-size: 10px; transition: transform 0.2s; }
+        [aria-expanded="true"] > .chev { transform: rotate(180deg); }
+
+        .about-panel {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 12px;
+            right: 12px;
+            max-height: calc(100vh - 96px);
+            overflow-y: auto;
+            padding: 6px;
+            border-radius: 16px;
+            background: #080503;
+            border: 1px solid rgba(249, 115, 22, 0.4);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.9), 0 0 40px rgba(255, 85, 0, 0.15);
+            animation: dropIn 0.18s ease-out;
+        }
+        @media (min-width: 640px) {
+            .about-panel { left: auto; right: 24px; width: 440px; }
+        }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-6px); } }
+
+        .about-panel details + details { border-top: 1px solid rgba(249, 115, 22, 0.15); }
+        .about-panel summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--orange-400);
+        }
+        .about-panel summary::-webkit-details-marker { display: none; }
+        .about-panel summary::after {
+            content: "+";
+            flex: none;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 18px;
+            line-height: 1;
+            color: var(--orange-500);
+        }
+        .about-panel details[open] > summary::after { content: "−"; }
+        .about-panel summary:hover { background: rgba(249, 115, 22, 0.08); }
+        .about-body {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 12px 14px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+        .about-body ul { padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+        .about-body strong { color: #fff; }
+
+        /* ---------- Основная часть ---------- */
+        main {
+            position: relative;
+            z-index: 10;
+            flex: 1;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 32px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        @media (min-width: 640px) { main { padding: 32px 24px; } }
+
+        .banner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 10px 20px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(249, 115, 22, 0.4);
+            box-shadow: 0 20px 40px rgba(249, 115, 22, 0.15);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            color: var(--orange-400);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        .banner .ping { color: var(--orange-500); width: 12px; height: 12px; }
+        @media (min-width: 640px) { .banner { font-size: 12px; } }
+
+        .housing {
+            position: relative;
+            background: linear-gradient(135deg, rgba(14, 10, 8, 0.95), rgba(3, 2, 2, 0.98));
+            border: 1px solid rgba(255, 85, 0, 0.45);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.98), inset 0 0 30px rgba(255, 85, 0, 0.12);
+            border-radius: 18px;
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+
+        .rack-scene { width: 100%; margin-bottom: 32px; perspective: 1400px; }
+
+        .rack {
+            width: 100%;
+            padding: 16px 8px;
+            border-radius: 24px;
+            transform-style: preserve-3d;
+            transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 0 120px rgba(255, 85, 0, 0.35), 0 30px 70px rgba(0, 0, 0, 0.99), inset 0 0 30px rgba(255, 85, 0, 0.12);
+        }
+        @media (min-width: 640px) { .rack { padding: 24px; } }
+
+        .rack-title {
+            margin-bottom: 20px;
+            text-align: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: rgba(251, 146, 60, 0.9);
+        }
+        @media (min-width: 640px) { .rack-title { font-size: 12px; letter-spacing: 0.4em; } }
+
+        /*
+         * Табло всегда в одну строку. Ширина лампы считается от ширины
+         * самого табло (container query): все отступы пропорциональны лампе,
+         * итого строка = 27.8 × ширина лампы + 6px рамок групп.
+         *   21 лампа + 21 зазор×0.12 + 3 разряда×0.3 + 3 разделителя×0.35
+         *   + 6 внутренних полей×0.25 + 2 промежутка между группами×0.4
+         */
+        .display {
+            container-type: inline-size;
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            align-items: flex-start;
+            gap: min(17.6px, calc((100cqw - 8px) / 28.2 * 0.4));
+            padding: 4px 0 8px;
+        }
+
+        .display > * {
+            --tube-w: min(44px, calc((100cqw - 8px) / 28.2));
+            --tube-h: calc(var(--tube-w) * 3.6);
+            --tube-gap: calc(var(--tube-w) * 0.12);
+            --thousands-gap: calc(var(--tube-w) * 0.3);
+        }
+
+        .group {
+            flex: none;
+            display: flex;
+            align-items: flex-start;
+            gap: var(--tube-gap);
+            padding: 10px calc(var(--tube-w) * 0.25);
+            border-radius: clamp(8px, calc(var(--tube-w) * 0.36), 16px);
+            border: 1px solid var(--line);
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: inset 0 2px 14px rgba(0, 0, 0, 0.9);
+        }
+
+        .unit { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .unit-tubes { display: flex; gap: var(--tube-gap); }
+        /* Подпись не влияет на ширину колонки: ширина 0, текст центрируется поверх */
+        .unit-label {
+            width: 0;
+            display: flex;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(7px, calc(var(--tube-w) * 0.24), 10px);
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            color: rgba(251, 146, 60, 0.85);
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .sep {
+            flex: none;
+            width: calc(var(--tube-w) * 0.35);
+            height: var(--tube-h);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--orange-500);
+            font-weight: 700;
+            font-size: clamp(9px, calc(var(--tube-w) * 0.45), 20px);
+            text-shadow: 0 0 8px var(--orange);
+        }
+
+        .tube-wrap { display: flex; flex-direction: column; align-items: center; }
+        .tube-wrap.thousands { margin-left: var(--thousands-gap); }
+
+        .tube {
+            position: relative;
+            width: var(--tube-w);
+            height: var(--tube-h);
+            border-radius: 999px;
+            overflow: hidden;
+            background: radial-gradient(circle at 35% 50%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 90, 0, 0.06) 30%, rgba(0, 0, 0, 0.96) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.15), 0 0 30px rgba(255, 85, 0, 0.3);
+        }
+        /* Сетка-анод */
+        .tube::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            border-radius: 999px;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, transparent, transparent 5px, rgba(255, 85, 0, 0.07) 5px, rgba(255, 85, 0, 0.07) 7px);
+        }
+        /* Блик на стекле */
+        .tube::after {
+            content: "";
+            position: absolute;
+            top: 4%; bottom: 4%; left: 15%;
+            width: clamp(1px, calc(var(--tube-w) * 0.09), 4px);
+            z-index: 10;
+            border-radius: 4px;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.02));
+            filter: blur(1px);
+        }
+
+        /* Все 10 катодов стоят друг за другом, как в настоящей лампе; горит один */
+        .digits {
+            position: absolute;
+            inset: 0;
+            animation: nixieFlicker 4.5s infinite;
+            animation-delay: var(--delay, 0s);
+        }
+        .cathode {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 400;
+            font-size: calc(var(--tube-w) * 1.1);
+            line-height: 1;
+            color: rgba(255, 120, 40, 0.06);
+            transform: scaleY(1.38) scaleX(0.82);
+            user-select: none;
+        }
+        .cathode.on {
+            z-index: 1;
+            color: var(--orange-hi);
+            /* Свечение масштабируется вместе с лампой, иначе мелкие цифры расплываются */
+            text-shadow:
+                0 0 calc(var(--tube-w) * 0.18) var(--orange),
+                0 0 calc(var(--tube-w) * 0.45) #ff3b00,
+                0 0 calc(var(--tube-w) * 0.8) rgba(255, 85, 0, 0.85);
+        }
+
+        /* Мерцание только через opacity: дёшево для GPU */
+        @keyframes nixieFlicker {
+            0%, 91%, 93%, 96%, 100% { opacity: 1; }
+            92% { opacity: 0.55; }
+            95% { opacity: 0.72; }
+        }
+
+        .base {
+            width: calc(var(--tube-w) * 0.8);
+            height: clamp(5px, calc(var(--tube-w) * 0.23), 10px);
+            margin-top: 4px;
+            border-radius: 0 0 6px 6px;
+            background: linear-gradient(90deg, #111, #666, #222, #888, #111);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.95);
+        }
+
+        .rack-meta {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px 24px;
+            font-size: 12px;
+            color: var(--muted);
+            text-align: center;
+        }
+        .rack-meta span { display: inline-flex; align-items: center; gap: 8px; }
+        .rack-meta .fa-radiation { color: var(--orange-500); }
+        .rack-meta .fa-hourglass-end { color: #f59e0b; }
+
+        /* ---------- Карточки ---------- */
+        .cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            width: 100%;
+        }
+        @media (min-width: 768px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1024px) { .cards { grid-template-columns: repeat(4, 1fr); } }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+            border-radius: 16px;
+            border-color: rgba(249, 115, 22, 0.25);
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: rgba(249, 115, 22, 0.5); }
+        .card-icon {
+            width: 40px; height: 40px;
+            display: grid; place-items: center;
+            margin-bottom: 16px;
+            border-radius: 12px;
+            font-size: 18px;
+            background: color-mix(in srgb, var(--accent) 15%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+            color: var(--accent);
+        }
+        .card h3 { margin-bottom: 8px; font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 700; color: #fff; }
+        .card p { font-size: 14px; color: #d1d5db; line-height: 1.6; }
+        .card-foot {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+            font-size: 11px;
+            color: var(--accent);
+        }
+
+        /* ---------- Музыка ---------- */
+        .music {
+            width: 100%;
+            margin-top: 32px;
+            padding: 20px;
+            border-radius: 16px;
+            border-color: rgba(249, 115, 22, 0.4);
+            background: linear-gradient(90deg, #000, #0d0703, #000);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            text-align: center;
+        }
+        @media (min-width: 768px) { .music { flex-direction: row; text-align: left; padding: 24px; } }
+        .music-info { display: flex; align-items: center; gap: 16px; }
+        .music-icon {
+            flex: none;
+            width: 56px; height: 56px;
+            display: grid; place-items: center;
+            border-radius: 16px;
+            background: linear-gradient(45deg, #ea580c, #d97706);
+            color: #000;
+            font-size: 22px;
+            box-shadow: 0 10px 24px rgba(234, 88, 12, 0.4);
+        }
+        .music h4 { font-family: 'Orbitron', sans-serif; font-size: 16px; font-weight: 700; color: #fff; }
+        .music p { font-size: 12px; color: var(--muted); }
+        @media (min-width: 640px) { .music h4 { font-size: 18px; } }
+
+        /* ---------- Модальное окно ---------- */
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.85);
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .modal[hidden] { display: none; }
+        .modal.open { opacity: 1; }
+
+        .modal-panel {
+            position: relative;
+            width: 100%;
+            max-width: 672px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            border-radius: 24px;
+            border-color: rgba(249, 115, 22, 0.4);
+            background: #060a12;
+            box-shadow: 0 25px 50px rgba(249, 115, 22, 0.2);
+        }
+        @media (min-width: 640px) { .modal-panel { padding: 32px; } }
+
+        .modal-x {
+            position: absolute;
+            top: 20px; right: 20px;
+            width: 40px; height: 40px;
+            display: grid; place-items: center;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(249, 115, 22, 0.3);
+            color: var(--muted);
+            font-size: 18px;
+            transition: color 0.2s;
+        }
+        .modal-x:hover { color: #fff; }
+
+        .modal-head { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-right: 48px; }
+        .modal-head .brand-icon { width: 48px; height: 48px; border-radius: 16px; font-size: 20px; }
+        .modal-head h2 { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 700; color: #fff; }
+        .modal-head p { font-size: 12px; color: var(--orange-400); }
+
+        .modal-body { display: flex; flex-direction: column; gap: 16px; font-size: 14px; color: #d1d5db; line-height: 1.6; }
+        .timeline {
+            padding: 16px;
+            border-radius: 12px;
+            background: rgba(67, 20, 7, 0.2);
+            border: 1px solid rgba(249, 115, 22, 0.25);
+        }
+        .timeline h4 {
+            margin-bottom: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--orange-400);
+        }
+        .timeline ul { list-style: disc inside; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+        .timeline strong { color: #fff; }
+        .note { font-size: 12px; color: var(--muted); }
+
+        .modal-foot {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(249, 115, 22, 0.2);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* ---------- Подвал ---------- */
+        footer {
+            position: relative;
+            z-index: 10;
+            padding: 24px 16px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted-2);
+            border-top: 1px solid rgba(249, 115, 22, 0.1);
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        /* ---------- Уменьшение движения ---------- */
+        @media (prefers-reduced-motion: reduce) {
+            .digits, .ping::before, .about-panel { animation: none; }
+            .chev { transition: none; }
+            .rack { transition: none; transform: none !important; }
+            .modal { transition: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Фон: декоративная галактика -->
+    <canvas id="galaxy-canvas" aria-hidden="true"></canvas>
+
+    <header class="site-header">
+        <div class="brand">
+            <div class="brand-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="brand-text">
+                <h1 class="orbitron">PROJECT DOOMSDAY // CHRONO-1B</h1>
+                <p>Хронометр обитаемости Земли • Непрерывный отсчёт</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="chip chip-visitors" id="visitor-chip" title="Уникальные посетители (по одному на браузер)">
+                <i class="fa-solid fa-users" aria-hidden="true"></i>
+                <span class="orbitron"><span class="label-sm-sr">Посетители: </span><strong id="visitor-count">…</strong></span>
+            </div>
+            <div class="chip chip-threat">
+                <span class="ping" aria-hidden="true"></span>
+                <span class="orbitron">УГРОЗА КАТАСТРОФЫ</span>
+            </div>
+            <button id="about-btn" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="about-panel">
+                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                <span class="label-sm-sr">О сайте</span>
+                <i class="fa-solid fa-chevron-down chev" aria-hidden="true"></i>
+            </button>
+            <button id="archive-btn" class="btn" type="button" aria-haspopup="dialog" aria-controls="archive-modal" aria-label="Открыть протокол угрозы">
+                <i class="fa-solid fa-book-atlas" aria-hidden="true"></i>
+                <span class="label-sm-sr" aria-hidden="true">Протокол угрозы</span>
+            </button>
+        </div>
+
+        <!-- Раскрывающееся меню «О сайте» -->
+        <div id="about-panel" class="about-panel" role="region" aria-label="О сайте" hidden>
+            <details open>
+                <summary>Что это за сайт</summary>
+                <div class="about-body">
+                    <p><strong>PROJECT DOOMSDAY</strong> — научно-художественный хронометр. Табло из никси-ламп отсчитывает около миллиарда лет: столько, по оценкам астрофизиков, Земля ещё сможет поддерживать сложную жизнь, пока растущая светимость Солнца не сделает планету слишком горячей.</p>
+                </div>
+            </details>
+            <details>
+                <summary>Зачем он нужен</summary>
+                <div class="about-body">
+                    <ul>
+                        <li><strong>Почувствовать масштаб времени.</strong> Вся письменная история человечества — около 0,0005% оставшегося срока, а весь путь Homo sapiens — около 0,03%.</li>
+                        <li><strong>Рассказать о науке.</strong> Почему звёзды со временем ярчают, как это меняет климат и почему у обитаемости любой планеты есть предел.</li>
+                        <li><strong>Сменить угол зрения.</strong> У биосферы впереди почти миллиард лет. Сколько из них достанется цивилизации, зависит от того, как она распорядится своим временем — здесь и в космосе.</li>
+                        <li><strong>Просто посмотреть.</strong> Сотые доли секунды на фоне миллиарда лет — неплохой повод на минуту остановиться.</li>
+                    </ul>
+                </div>
+            </details>
+            <details>
+                <summary>Как читать табло</summary>
+                <div class="about-body">
+                    <p>Слева направо: <strong>годы</strong> (10 ламп с разбивкой по разрядам), <strong>дни</strong>, <strong>часы</strong>, <strong>минуты</strong>, <strong>секунды</strong> и <strong>сотые доли секунды</strong>. Отсчёт начался 1 января 2026 года в 00:00 UTC ровно с 1 000 000 000 лет, поэтому у всех посетителей табло показывает одно и то же. Этапы угасания описаны в «Протоколе угрозы».</p>
+                </div>
+            </details>
+            <details>
+                <summary>Насколько это точно</summary>
+                <div class="about-body">
+                    <p>Дата старта — художественная условность. Научные модели дают разброс от нескольких сотен миллионов до примерно полутора миллиардов лет: многое зависит от того, как поведут себя облака, углеродный цикл и тектоника. Миллиард лет — круглая середина этих оценок.</p>
+                    <p>Счётчик посетителей анонимный: без cookies и сторонних сервисов, IP-адреса не сохраняются.</p>
+                </div>
+            </details>
+        </div>
+    </header>
+
+    <main>
+        <div class="banner">
+            <span class="ping" aria-hidden="true"></span>
+            <span>Обратный отсчёт до конца обитаемости Земли для сложной жизни</span>
+        </div>
+
+        <div class="rack-scene">
+            <section id="nixie-rack" class="rack housing" aria-labelledby="rack-title">
+                <h2 id="rack-title" class="rack-title">Терминал конца эры земной жизни · 1 000 000 000 лет</h2>
+
+                <!-- Текстовая версия таймера для скринридеров (обновляется раз в минуту) -->
+                <p id="countdown-sr" class="sr-only" role="timer"></p>
+
+                <!-- Лампы заполняются скриптом; порядок групп = порядок цифр -->
+                <div class="display" aria-hidden="true">
+                    <div class="group">
+                        <div class="unit">
+                            <div class="unit-tubes" data-tubes="10" data-thousands="1,4,7"></div>
+                            <span class="unit-label">Лет</span>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <div class="unit">
+                            <div class="unit-tubes" data-tubes="3"></div>
+                            <span class="unit-label">Дней</span>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <div class="unit">
+                            <div class="unit-tubes" data-tubes="2"></div>
+                            <span class="unit-label">Час</span>
+                        </div>
+                        <span class="sep">:</span>
+                        <div class="unit">
+                            <div class="unit-tubes" data-tubes="2"></div>
+                            <span class="unit-label">Мин</span>
+                        </div>
+                        <span class="sep">:</span>
+                        <div class="unit">
+                            <div class="unit-tubes" data-tubes="2"></div>
+                            <span class="unit-label">Сек</span>
+                        </div>
+                        <span class="sep">.</span>
+                        <div class="unit">
+                            <div class="unit-tubes" data-tubes="2"></div>
+                            <span class="unit-label">1/100</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rack-meta">
+                    <span><i class="fa-solid fa-radiation" aria-hidden="true"></i>Фактор: рост светимости Солнца (~1% за 100 млн лет)</span>
+                    <span><i class="fa-solid fa-hourglass-end" aria-hidden="true"></i><span id="clock-source">Отсчёт от 01.01.2026 00:00 UTC</span></span>
+                </div>
+            </section>
+        </div>
+
+        <div class="cards">
+            <article class="card housing" style="--accent: #fb923c;">
+                <div>
+                    <div class="card-icon" aria-hidden="true"><i class="fa-solid fa-sun"></i></div>
+                    <h3>Разогрев Солнца</h3>
+                    <p>Солнце становится ярче примерно на 1% каждые 100 млн лет — около 10% за миллиард. Земля получает всё больше тепла.</p>
+                </div>
+                <div class="card-foot">Астрофизический предел</div>
+            </article>
+
+            <article class="card housing" style="--accent: #22d3ee;">
+                <div>
+                    <div class="card-icon" aria-hidden="true"><i class="fa-solid fa-wind"></i></div>
+                    <h3>Гибель фотосинтеза</h3>
+                    <p>Нагрев ускоряет выветривание пород, которое вытягивает CO₂ из атмосферы. Через ~500–600 млн лет его не хватит большинству растений, позже — и остальным.</p>
+                </div>
+                <div class="card-foot">Биологический тупик</div>
+            </article>
+
+            <article class="card housing" style="--accent: #fbbf24;">
+                <div>
+                    <div class="card-icon" aria-hidden="true"><i class="fa-solid fa-water"></i></div>
+                    <h3>Испарение океанов</h3>
+                    <p>Примерно через 1 млрд лет начнётся режим «влажной оранжереи»: водяной пар поднимется в верхнюю атмосферу и станет уходить в космос. Океаны начнут исчезать.</p>
+                </div>
+                <div class="card-foot">Климатический коллапс</div>
+            </article>
+
+            <article class="card housing" style="--accent: #f87171;">
+                <div>
+                    <div class="card-icon" aria-hidden="true"><i class="fa-solid fa-skull-crossbones"></i></div>
+                    <h3>Предел обитаемости</h3>
+                    <p>Без жидкой воды, кислорода и при критической жаре сложная жизнь на Земле станет невозможной. Продолжить историю смогут лишь те, кто покинет колыбель.</p>
+                </div>
+                <div class="card-foot">Финальный рубеж</div>
+            </article>
+        </div>
+
+        <div class="music housing">
+            <div class="music-info">
+                <div class="music-icon" aria-hidden="true"><i class="fa-solid fa-music"></i></div>
+                <div>
+                    <h4>Hans Zimmer — Time (Inception)</h4>
+                    <p>Рекомендованный саундтрек к отсчёту</p>
+                </div>
+            </div>
+            <a href="https://youtu.be/c56t7upa8Bk" target="_blank" rel="noopener noreferrer" class="btn btn-lg">
+                <i class="fa-solid fa-play" aria-hidden="true"></i>
+                <span>Включить трек на YouTube</span>
+                <span class="sr-only">(откроется в новой вкладке)</span>
+            </a>
+        </div>
+    </main>
+
+    <!-- Модальное окно протокола -->
+    <div id="archive-modal" class="modal" hidden>
+        <div class="modal-panel housing" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc">
+            <button class="modal-x" type="button" data-close aria-label="Закрыть протокол"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+            <div class="modal-head">
+                <div class="brand-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div>
+                    <h2 id="modal-title">Протокол угрозы: конец эры</h2>
+                    <p>Моделирование исчерпания обитаемости планеты</p>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p id="modal-desc">Хронометр показывает запас времени до момента, когда Земля потеряет пригодность для сложной жизни из-за постепенного разогрева Солнца.</p>
+                <div class="timeline">
+                    <h4>Хронология угасания</h4>
+                    <ul>
+                        <li><strong>Этап I (сейчас):</strong> Солнце медленно становится ярче; биосфера пока удерживает равновесие.</li>
+                        <li><strong>Этап II (~500–600 млн лет):</strong> CO₂ падает ниже порога для большинства растений, леса исчезают, кислорода становится меньше.</li>
+                        <li><strong>Этап III (~1 млрд лет):</strong> «влажная оранжерея», начало потери океанов, конец сложной жизни на Земле.</li>
+                    </ul>
+                </div>
+                <p class="note">Таймер — художественная условность: отсчёт идёт ровно 1 млрд лет от 01.01.2026, а научные оценки имеют разброс в сотни миллионов лет. Нынешнее антропогенное потепление — отдельный, кратковременный процесс, к этому сценарию он не относится.</p>
+            </div>
+            <div class="modal-foot">
+                <button class="btn btn-lg" type="button" data-close>Закрыть протокол</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>Терминал DOOMSDAY • Газоразрядные индикаторы Nixie • Обратный отсчёт конца обитаемости Земли</p>
+    </footer>
+
+    <script>
+    'use strict';
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+    function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* хранилище недоступно */ } }
+
+    // ===================================================================
+    // 1. СЧЁТЧИК ПОСЕТИТЕЛЕЙ — собственная функция Netlify (/api/visits),
+    //    данные в Netlify Blobs. Сторонние сервисы не используются.
+    //    Браузер получает случайный анонимный id; сервер засчитывает
+    //    каждый id один раз, так что повторные заходы не накручивают число.
+    // ===================================================================
+    const VISITS_API = '/api/visits';
+    const VISITOR_KEY = 'doomsday_visitor_id';
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    function makeUuid() {
+        if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+        const b = crypto.getRandomValues(new Uint8Array(16));
+        b[6] = (b[6] & 0x0f) | 0x40;
+        b[8] = (b[8] & 0x3f) | 0x80;
+        const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+        return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    }
+
+    function getVisitorId() {
+        let id = storageGet(VISITOR_KEY);
+        if (!id || !UUID_RE.test(id)) {
+            id = makeUuid();
+            storageSet(VISITOR_KEY, id);
+        }
+        return id;
+    }
+
+    async function initVisitorCounter() {
+        const chip = document.getElementById('visitor-chip');
+        const out = document.getElementById('visitor-count');
+
+        if (!/^https?:$/.test(location.protocol)) {   // локальный файл: функции Netlify нет
+            chip.hidden = true;
+            return;
+        }
+
+        try {
+            // Повторная отправка того же id безопасна: сервер засчитывает его один раз
+            const res = await fetch(VISITS_API, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ id: getVisitorId() }),
+                cache: 'no-store'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (typeof data.count !== 'number' || !isFinite(data.count)) throw new Error('Неожиданный ответ');
+            out.textContent = data.count.toLocaleString('ru-RU');
+        } catch (e) {
+            out.textContent = '—';
+            chip.title = 'Счётчик временно недоступен';
+        }
+    }
+    initVisitorCounter();
+
+    // ===================================================================
+    // 2. НИКСИ-ТАБЛО
+    // ===================================================================
+    const tubes = [];   // [{ cathodes: [10 span], current: -1 }] в порядке цифр
+
+    document.querySelectorAll('.unit-tubes').forEach(holder => {
+        const count = Number(holder.dataset.tubes);
+        const thousands = (holder.dataset.thousands || '').split(',').filter(Boolean).map(Number);
+        for (let i = 0; i < count; i++) {
+            const wrap = document.createElement('div');
+            wrap.className = 'tube-wrap' + (thousands.includes(i) ? ' thousands' : '');
+
+            const tube = document.createElement('div');
+            tube.className = 'tube';
+
+            const digits = document.createElement('div');
+            digits.className = 'digits';
+            digits.style.setProperty('--delay', (Math.random() * 4).toFixed(2) + 's');
+
+            const cathodes = [];
+            for (let d = 0; d < 10; d++) {
+                const c = document.createElement('span');
+                c.className = 'cathode';
+                c.textContent = d;
+                digits.appendChild(c);
+                cathodes.push(c);
+            }
+
+            const base = document.createElement('div');
+            base.className = 'base';
+
+            tube.appendChild(digits);
+            wrap.append(tube, base);
+            holder.appendChild(wrap);
+            tubes.push({ cathodes, current: -1 });
+        }
+    });
+
+    function setDigit(index, digit) {
+        const t = tubes[index];
+        if (t.current === digit) return;           // DOM трогаем только при смене цифры
+        if (t.current >= 0) t.cathodes[t.current].classList.remove('on');
+        t.cathodes[digit].classList.add('on');
+        t.current = digit;
+    }
+
+    // ===================================================================
+    // 3. ТАЙМЕР
+    //    Огромное число миллисекунд (3·10^19) не помещается в double без
+    //    потерь (шаг ~4 с), поэтому считаем только прошедшее время —
+    //    оно маленькое и точное.
+    // ===================================================================
+    const START = Date.UTC(2026, 0, 1);
+    const MS_DAY = 86400000;
+    const MS_YEAR = 365.25 * MS_DAY;               // 31 557 600 000 — целое
+    const TOTAL_YEARS = 1e9;
+
+    let clockOffset = 0;                            // поправка «сервер − устройство», мс
+    const clockLabel = document.getElementById('clock-source');
+    const srOut = document.getElementById('countdown-sr');
+    let lastSrMinute = null;
+
+    async function syncClock() {
+        if (!/^https?:$/.test(location.protocol)) {
+            clockLabel.textContent = 'Отсчёт от 01.01.2026 00:00 UTC · по часам устройства';
+            return;
+        }
+        try {
+            const t0 = Date.now();
+            const res = await fetch(location.href.split('#')[0], { method: 'HEAD', cache: 'no-store' });
+            const t1 = Date.now();
+            const server = Date.parse(res.headers.get('Date') || '');
+            if (isNaN(server)) throw new Error('Нет заголовка Date');
+            // Date имеет точность 1 с: берём середину секунды и середину запроса
+            const offset = server + 500 - (t0 + t1) / 2;
+            clockOffset = Math.abs(offset) > 1500 ? offset : 0;
+            clockLabel.textContent = 'Отсчёт от 01.01.2026 00:00 UTC · время сверено с сервером';
+        } catch (e) {
+            clockLabel.textContent = 'Отсчёт от 01.01.2026 00:00 UTC · по часам устройства';
+        }
+    }
+
+    function getRemaining() {
+        const elapsed = Math.max(0, Date.now() + clockOffset - START);
+        const passed = Math.floor(elapsed / MS_YEAR);
+        const intoYear = elapsed - passed * MS_YEAR;
+
+        let years = TOTAL_YEARS - passed;
+        let rem = 0;
+        if (intoYear > 0) { years -= 1; rem = MS_YEAR - intoYear; }
+        if (years < 0) { years = 0; rem = 0; }
+
+        const days = Math.floor(rem / MS_DAY);   rem -= days * MS_DAY;
+        const hours = Math.floor(rem / 3600000); rem -= hours * 3600000;
+        const minutes = Math.floor(rem / 60000); rem -= minutes * 60000;
+        const seconds = Math.floor(rem / 1000);  rem -= seconds * 1000;
+        const centis = Math.floor(rem / 10);
+        return { years, days, hours, minutes, seconds, centis };
+    }
+
+    const pad = (v, n) => String(v).padStart(n, '0');
+
+    function renderCountdown() {
+        const r = getRemaining();
+        const str = pad(r.years, 10) + pad(r.days, 3) + pad(r.hours, 2) +
+                    pad(r.minutes, 2) + pad(r.seconds, 2) + pad(r.centis, 2);
+        for (let i = 0; i < str.length; i++) setDigit(i, str.charCodeAt(i) - 48);
+
+        const minuteKey = `${r.years}-${r.days}-${r.hours}-${r.minutes}`;
+        if (minuteKey !== lastSrMinute) {
+            lastSrMinute = minuteKey;
+            srOut.textContent = `Осталось: ${r.years.toLocaleString('ru-RU')} лет, ${r.days} дн., ${r.hours} ч, ${r.minutes} мин.`;
+        }
+    }
+
+    function tick() {
+        renderCountdown();
+        requestAnimationFrame(tick);
+    }
+
+    renderCountdown();
+    requestAnimationFrame(tick);
+    syncClock();
+
+    // ===================================================================
+    // 4. 3D-НАКЛОН СТОЙКИ (только мышь, с учётом reduced motion)
+    // ===================================================================
+    const rack = document.getElementById('nixie-rack');
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+    let tiltFrame = 0, mouseX = 0, mouseY = 0;
+    const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+    function applyTilt() {
+        tiltFrame = 0;
+        if (reduceMotion.matches) { rack.style.transform = ''; return; }
+        const rect = rack.getBoundingClientRect();
+        const x = clamp((mouseX - rect.left - rect.width / 2) / rect.width, -1, 1);
+        const y = clamp((mouseY - rect.top - rect.height / 2) / rect.height, -1, 1);
+        rack.style.transform = `rotateX(${(-y * 2.5).toFixed(2)}deg) rotateY(${(x * 2.5).toFixed(2)}deg)`;
+    }
+    function resetTilt() { rack.style.transform = 'rotateX(0deg) rotateY(0deg)'; }
+
+    if (finePointer.matches) {
+        document.addEventListener('mousemove', e => {
+            mouseX = e.clientX; mouseY = e.clientY;
+            if (!tiltFrame) tiltFrame = requestAnimationFrame(applyTilt);
+        });
+        document.addEventListener('mouseout', e => { if (!e.relatedTarget) resetTilt(); });
+        window.addEventListener('blur', resetTilt);
+    }
+
+    // ===================================================================
+    // 5. МОДАЛЬНОЕ ОКНО (Esc, фокус-ловушка, возврат фокуса)
+    // ===================================================================
+    const modal = document.getElementById('archive-modal');
+    const archiveBtn = document.getElementById('archive-btn');
+    let lastFocus = null, closeTimer = 0;
+
+    function focusables() {
+        return Array.from(modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+            .filter(el => !el.disabled && el.offsetParent !== null);
+    }
+
+    function openModal() {
+        clearTimeout(closeTimer);
+        lastFocus = document.activeElement;
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => modal.classList.add('open'));
+        modal.querySelector('.modal-x').focus();
+        document.addEventListener('keydown', onModalKey);
+    }
+
+    function closeModal() {
+        modal.classList.remove('open');
+        document.removeEventListener('keydown', onModalKey);
+        document.body.style.overflow = '';
+        closeTimer = setTimeout(() => { modal.hidden = true; }, reduceMotion.matches ? 0 : 300);
+        if (lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+    }
+
+    function onModalKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); closeModal(); return; }
+        if (e.key !== 'Tab') return;
+        const items = focusables();
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    archiveBtn.addEventListener('click', openModal);
+    modal.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', closeModal));
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+    // ===================================================================
+    // 5б. МЕНЮ «О САЙТЕ» (клик вне меню и Esc закрывают его)
+    // ===================================================================
+    const aboutBtn = document.getElementById('about-btn');
+    const aboutPanel = document.getElementById('about-panel');
+
+    function setAbout(open) {
+        aboutBtn.setAttribute('aria-expanded', String(open));
+        aboutPanel.hidden = !open;
+    }
+
+    aboutBtn.addEventListener('click', () => setAbout(aboutPanel.hidden));
+    document.addEventListener('click', e => {
+        if (!aboutPanel.hidden && !aboutPanel.contains(e.target) && !aboutBtn.contains(e.target)) setAbout(false);
+    });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !aboutPanel.hidden) { setAbout(false); aboutBtn.focus(); }
+    });
+    archiveBtn.addEventListener('click', () => setAbout(false));
+
+    // ===================================================================
+    // 6. ГАЛАКТИКА НА ФОНЕ
+    //    Без shadowBlur (свечение — заранее отрисованные спрайты),
+    //    резкость на Retina, пересборка при ресайзе, reduced motion.
+    // ===================================================================
+    const canvas = document.getElementById('galaxy-canvas');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, DPR = 1, stars = [], galaxyRunning = false, lastTime = 0;
+
+    const STAR_COLORS = ['#ffffff', '#ffcc88', '#ff8844'];
+    const sprites = STAR_COLORS.map(color => {
+        const s = document.createElement('canvas');
+        s.width = s.height = 32;
+        const g = s.getContext('2d');
+        const grd = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grd.addColorStop(0, color);
+        grd.addColorStop(0.25, color);
+        grd.addColorStop(0.5, color + '40');
+        grd.addColorStop(1, color + '00');
+        g.fillStyle = grd;
+        g.fillRect(0, 0, 32, 32);
+        return s;
+    });
+
+    function makeStar() {
+        const dist = Math.pow(Math.random(), 1.3) * Math.max(W, H) * 0.75;
+        return {
+            angle: Math.random() * Math.PI * 2,
+            dist,
+            size: Math.random() * 1.6 + 0.3,
+            arm: Math.floor(Math.random() * 2) * Math.PI,
+            alpha: Math.random() * 0.7 + 0.3,
+            sprite: dist < 80 ? sprites[0] : dist < 220 ? sprites[1] : sprites[2],
+            speed: 0.0012 * (1 + 150 / (dist + 40))
+        };
+    }
+
+    function setupCanvas() {
+        DPR = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth;
+        H = window.innerHeight;
+        canvas.width = Math.round(W * DPR);
+        canvas.height = Math.round(H * DPR);
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+        const count = Math.round(clamp(W * H / 2000, 250, 800));
+        stars = Array.from({ length: count }, makeStar);
+
+        ctx.fillStyle = '#000103';
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    function drawGalaxy(step) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(0, 1, 3, 0.25)';
+        ctx.fillRect(0, 0, W, H);
+
+        const cx = W / 2, cy = H / 2;
+        const core = ctx.createRadialGradient(cx, cy, 5, cx, cy, 160);
+        core.addColorStop(0, 'rgba(255, 140, 50, 0.45)');
+        core.addColorStop(0.5, 'rgba(255, 60, 10, 0.15)');
+        core.addColorStop(1, 'rgba(255, 60, 10, 0)');
+        ctx.fillStyle = core;
+        ctx.fillRect(cx - 160, cy - 160, 320, 320);
+
+        for (const s of stars) {
+            s.angle += s.speed * step;
+            const a = s.angle + s.dist * 0.0018 + s.arm;
+            const x = cx + Math.cos(a) * s.dist;
+            const y = cy + Math.sin(a) * s.dist * 0.52;
+            const r = s.size * 4;
+            ctx.globalAlpha = s.alpha;
+            ctx.drawImage(s.sprite, x - r, y - r, r * 2, r * 2);
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function galaxyLoop(time) {
+        if (!galaxyRunning) return;
+        const step = lastTime ? clamp((time - lastTime) / 16.67, 0, 3) : 1;   // скорость не зависит от частоты экрана
+        lastTime = time;
+        drawGalaxy(step);
+        requestAnimationFrame(galaxyLoop);
+    }
+
+    function startGalaxy() {
+        if (reduceMotion.matches) {
+            galaxyRunning = false;
+            for (let i = 0; i < 12; i++) drawGalaxy(0);   // статичный кадр
+            return;
+        }
+        if (galaxyRunning) return;
+        galaxyRunning = true;
+        lastTime = 0;
+        requestAnimationFrame(galaxyLoop);
+    }
+
+    let resizeTimer = 0;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            setupCanvas();
+            if (!galaxyRunning) startGalaxy();
+        }, 150);
+    });
+
+    reduceMotion.addEventListener('change', () => {
+        galaxyRunning = false;
+        setupCanvas();
+        startGalaxy();
+        if (reduceMotion.matches) rack.style.transform = '';
+    });
+
+    setupCanvas();
+    startGalaxy();
+    </script>
+</body>
+</html>
